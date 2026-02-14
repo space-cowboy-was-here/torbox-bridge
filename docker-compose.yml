@@ -10,8 +10,8 @@ services:
     ports:
       - "${PORT:-5051}:${PORT:-5051}"
     volumes:
-      - ${CONFIG_DIR:-./config}:/config
-      - ${DL_DIR:-./downloads}:/downloads
+      - config:/config
+      - downloads:/downloads
     environment:
       - PORT=${PORT:-5051}
       - CONFIG_DIR=/config
@@ -24,4 +24,5 @@ networks:
     driver: bridge
 
 volumes:
+  config:
   downloads:
