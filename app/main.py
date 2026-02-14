@@ -338,7 +338,7 @@ def request_download_link(t_id, file_id):
     return None
 
 
-def safe_folder_name(nzo_id: str, filename: str | None = None, torbox_name: str | None = None) -> str:
+def safe_folder_name(nzo_id: str, filename: str = None, torbox_name: str = None) -> str:
     """Create a stable, filesystem-safe folder name for a job.
 
     Prefer TorBox's display name (cleaner), fall back to the NZB filename stem,
