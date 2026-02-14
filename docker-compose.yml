@@ -10,7 +10,6 @@ services:
     ports:
       - "${PORT:-5051}:${PORT:-5051}"
     volumes:
-      - ./app:/app
       - ${CONFIG_DIR:-./config}:/config
       - ${DL_DIR:-./downloads}:/downloads
     environment:
