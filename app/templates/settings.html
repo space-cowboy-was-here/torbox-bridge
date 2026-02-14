@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Settings</h1>
+        {% if setup_needed %}
+        <div style="background: #e65100; color: white; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+            <strong>Setup Required:</strong> Please configure your API tokens to continue.
+        </div>
+        {% endif %}
+        <form id="settings-form">
+            <div class="form-group">
+                <label for="torbox_api_key">TorBox API Key:</label>
+                <input type="text" id="torbox_api_key" name="torbox_api_key" value="{{ settings.torbox_api_key }}">
+            </div>
+            <div class="form-group">
+                <label for="sab_api_key">SABnzbd API Key:</label>
+                <input type="text" id="sab_api_key" name="sab_api_key" value="{{ settings.sab_api_key }}">
+            </div>
+            <div class="form-group">
+                <label for="max_concurrent">Max Concurrent Downloads:</label>
+                <input type="number" id="max_concurrent" name="max_concurrent" value="{{ settings.max_concurrent }}">
+            </div>
+            <div class="form-group">
+                <label for="stuck_timeout">Stuck Timeout (seconds):</label>
+                <input type="number" id="stuck_timeout" name="stuck_timeout" value="{{ settings.stuck_timeout }}">
+            </div>
+            <button type="submit">Save Settings</button>
+        </form>
+        <div id="message"></div>
+    </div>
+    <script>
+        document.getElementById('settings-form').addEventListener('submit', function(event) {
+            event.preventDefault();
+            const formData = new FormData(this);
+            fetch('/ui/settings/save', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('message').innerText = data.status ? 'Settings saved successfully!' : 'Error saving settings.';
+            })
+            .catch(error => {
+                document.getElementById('message').innerText = 'Error saving settings.';
+            });
+        });
+    </script>
+</body>
+</html>

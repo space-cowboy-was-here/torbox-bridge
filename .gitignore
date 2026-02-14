@@ -1,0 +1,6 @@
+config/
+downloads/
+__pycache__/
+*.db
+.env
+.DS_Store

@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  torbox-sabnzbd:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "5051:5051"
+    volumes:
+      - ./app:/app
+      - ./config:/config
+      - ./downloads:/downloads
+    environment:
+      - PORT=5051
+      - CONFIG_DIR=/config
+    restart: unless-stopped
+
+networks:
+  default:
+    driver: bridge
+
+volumes:
+  downloads:

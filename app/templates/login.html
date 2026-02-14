@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - TorBox Bridge</title>
+    <style>
+        body { 
+            background-color: #121212; 
+            color: #e0e0e0; 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .login-card {
+            background: #1e1e1e;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            border: 1px solid #333;
+            width: 100%;
+            max-width: 320px;
+            text-align: center;
+        }
+        h1 { margin-top: 0; font-size: 20px; color: #4CAF50; }
+        .input-group { margin-bottom: 15px; text-align: left; }
+        label { display: block; margin-bottom: 5px; font-size: 13px; color: #aaa; }
+        input { 
+            width: 100%; 
+            box-sizing: border-box; 
+            padding: 10px; 
+            background: #252525; 
+            border: 1px solid #444; 
+            color: white; 
+            border-radius: 6px; 
+            font-size: 14px;
+        }
+        input:focus { border-color: #4CAF50; outline: none; }
+        button {
+            width: 100%;
+            padding: 10px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        button:hover { background: #43A047; }
+        .error { color: #F44336; font-size: 13px; margin-bottom: 15px; }
+        .info { color: #888; font-size: 12px; margin-top: 15px; line-height: 1.4; }
+    </style>
+</head>
+<body>
+    <div class="login-card">
+        <h1>{{ 'Create Account' if setup_mode else 'TorBox Bridge' }}</h1>
+        
+        {% if error %}
+        <div class="error">{{ error }}</div>
+        {% endif %}
+
+        <form method="POST">
+            <div class="input-group">
+                <label>Username</label>
+                <input type="text" name="username" required autofocus>
+            </div>
+            <div class="input-group">
+                <label>Password</label>
+                <input type="password" name="password" required>
+            </div>
+            <button type="submit">{{ 'Create Account' if setup_mode else 'Login' }}</button>
+        </form>
+
+        {% if setup_mode %}
+        <div class="info">Welcome! Since this is your first time run, please set up an admin account to protect your bridge.</div>
+        {% endif %}
+    </div>
+</body>
+</html>

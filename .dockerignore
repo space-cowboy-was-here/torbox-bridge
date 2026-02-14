@@ -1,0 +1,27 @@
+# Ignore Python bytecode files
+__pycache__/
+*.pyc
+*.pyo
+
+# Ignore environment variable files
+.env
+
+# Ignore Docker-related files
+docker-compose.override.yml
+
+# Ignore logs and temporary files
+logs/
+*.log
+tmp/
+*.tmp
+
+# Ignore local configuration files
+*.local
+
+# Ignore any other files you don't want to include in the Docker image
+*.md
+*.txt
+*.git
+.gitignore
+README.md
+requirements.txt
