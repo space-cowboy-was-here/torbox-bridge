@@ -104,29 +104,37 @@ def init_db():
                      (nzo_id TEXT PRIMARY KEY, torbox_id TEXT, filename TEXT, category TEXT, status TEXT, 
                       size REAL, progress REAL, added_at REAL, path TEXT, failure_reason TEXT, last_updated REAL,
                       speed REAL DEFAULT 0, eta REAL DEFAULT 0, is_paused INTEGER DEFAULT 0, priority INTEGER DEFAULT 0, avg_speed REAL DEFAULT 0)''')
-        try:
-            c.execute("ALTER TABLE queue ADD COLUMN last_updated REAL")
-        except: pass
-
-        try:
-            c.execute("ALTER TABLE queue ADD COLUMN output_path TEXT")
-        except: pass
-
-        try:
-            c.execute("ALTER TABLE queue ADD COLUMN is_paused INTEGER DEFAULT 0")
-        except: pass
         
-        try:
-            c.execute("ALTER TABLE queue ADD COLUMN speed REAL DEFAULT 0")
-        except: pass
-
-        try:
-            c.execute("ALTER TABLE queue ADD COLUMN eta REAL DEFAULT 0")
-        except: pass
-
-        try:
-            c.execute("ALTER TABLE queue ADD COLUMN avg_speed REAL DEFAULT 0")
-        except: pass
+        # Migration: Add missing columns if they don't exist
+        # Get existing columns
+        c.execute("PRAGMA table_info(queue)")
+        existing_cols = [row[1] for row in c.fetchall()]
+        
+        needed_cols = {
+            'last_updated': 'REAL',
+            'output_path': 'TEXT',
+            'is_paused': 'INTEGER DEFAULT 0',
+            'speed': 'REAL DEFAULT 0',
+            'eta': 'REAL DEFAULT 0',
+            'avg_speed': 'REAL DEFAULT 0',
+            'priority': 'INTEGER DEFAULT 0'
+        }
+        
+        for col_name, col_type in needed_cols.items():
+            if col_name not in existing_cols:
+                success = False
+                for attempt in range(3):
+                    try:
+                        logger.info(f"Migration: Adding missing column '{col_name}' to queue table (Attempt {attempt+1}/3)")
+                        c.execute(f"ALTER TABLE queue ADD COLUMN {col_name} {col_type}")
+                        success = True
+                        break
+                    except Exception as e:
+                        logger.error(f"Migration Failed for column '{col_name}': {e}")
+                        time.sleep(1)
+                
+                if not success:
+                    logger.critical(f"FATAL: Could not add column '{col_name}' after 3 attempts. Application may be unstable.")
         
         c.execute('''CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)''')
         c.execute('''CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, username TEXT UNIQUE, password_hash TEXT)''')
@@ -136,16 +144,6 @@ def init_db():
         
         # Reset any stuck local downloads from previous runs
         c.execute("UPDATE queue SET status='Cloud_Done' WHERE status='Downloading_Local'")
-        
-        # Add priority column if missing (Migration)
-        try:
-            c.execute("ALTER TABLE queue ADD COLUMN priority INTEGER DEFAULT 0")
-        except: pass
-
-        # Add avg_speed column if missing (Migration)
-        try:
-            c.execute("ALTER TABLE queue ADD COLUMN avg_speed REAL")
-        except: pass
         
         conn.commit()
         conn.close()
@@ -1027,7 +1025,7 @@ def ui_data():
         history_items = [dict(row) for row in hist_rows]
 
         # Calculate Global Speed
-        global_speed = sum((r['speed'] or 0) for r in queue_items)
+        global_speed = sum((r.get('speed', 0) or 0) for r in queue_items)
         
         return jsonify({
             "queue": queue_items,
@@ -1433,7 +1431,8 @@ def api_v2_torrents_info():
         rows = conn.execute(query, params).fetchall()
         
         torrents = []
-        for r in rows:
+        for row in rows:
+            r = dict(row)
             # Map DB state to qBit state
             # qBit states: error, missingFiles, uploading, pausedUP, queuedUP, stalledUP, checkingUP, forcedUP, allocating, downloading, metaDL, pausedDL, queuedDL, stalledDL, checkingDL, forcedDL, checkingResumeData, moving, unknown
             state = 'downloading'
@@ -1457,14 +1456,14 @@ def api_v2_torrents_info():
                 'size': total_size,
                 'total_size': total_size,
                 'progress': progress,
-                'dlspeed': int(r['speed'] or 0),
+                'dlspeed': int(r.get('speed', 0) or 0),
                 'upspeed': 0,
                 'priority': 0,
                 'num_seeds': 0,
                 'num_leechs': 0,
                 'num_incomplete': 0,
                 'ratio': 0,
-                'eta': int(r['eta'] or 0),
+                'eta': int(r.get('eta', 0) or 0),
                 'state': state,
                 'seq_dl': False,
                 'f_l_piece_prio': False,
