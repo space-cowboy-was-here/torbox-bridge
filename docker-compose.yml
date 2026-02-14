@@ -1,19 +1,23 @@
 version: '3.8'
 
 services:
-  torbox-sabnzbd:
+  torbox-bridge:
+    image: ghcr.io/space-cowboy-was-here/torbox-bridge:latest
     build:
       context: .
       dockerfile: Dockerfile
+    container_name: torbox-bridge
     ports:
-      - "5051:5051"
+      - "${PORT:-5051}:${PORT:-5051}"
     volumes:
       - ./app:/app
-      - ./config:/config
-      - ./downloads:/downloads
+      - ${CONFIG_DIR:-./config}:/config
+      - ${DL_DIR:-./downloads}:/downloads
     environment:
-      - PORT=5051
+      - PORT=${PORT:-5051}
       - CONFIG_DIR=/config
+      - DL_DIR=/downloads
+      - FLASK_DEBUG=${FLASK_DEBUG:-false}
     restart: unless-stopped
 
 networks:
