@@ -45,7 +45,7 @@ torbox-bridge
 
 2. **Start the application:**
    ```bash
-   docker-compose up -d
+   docker compose up -d
    ```
    *By default, the bridge runs on port `5051`.*
 

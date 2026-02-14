@@ -48,6 +48,10 @@ torbox_bridge.db
 
 # Testing
 .coverage
+
+# Copilot / AI
+.github/copilot-instructions.md
+
 .pytest_cache/
 htmlcov/
 

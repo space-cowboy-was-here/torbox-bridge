@@ -3,167 +3,286 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Settings - TorBox Bridge</title>
+    <title>TorBox Bridge - Settings</title>
     <style>
-        body { 
-            background-color: #121212; 
-            color: #e0e0e0; 
+        :root {
+            --bg-color: #1a1b1e;
+            --card-bg: #25262b;
+            --text-primary: #c1c2c5;
+            --text-secondary: #909296;
+            --accent: #339af0;
+            --border: #373a40;
+            --success: #40c057;
+            --error: #fa5252;
+            --warning: #fab005;
+        }
+
+        body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
             margin: 0;
             padding: 20px;
-            box-sizing: border-box;
         }
+
         .container {
-            background: #1e1e1e;
-            padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-            border: 1px solid #333;
-            width: 100%;
-            max-width: 400px;
-            text-align: center;
+            max-width: 800px;
+            margin: 0 auto;
         }
-        h1 { margin-top: 0; font-size: 20px; color: #4CAF50; margin-bottom: 20px; }
-        .form-group { margin-bottom: 15px; text-align: left; }
-        label { display: block; margin-bottom: 5px; font-size: 13px; color: #aaa; }
-        input { 
-            width: 100%; 
-            box-sizing: border-box; 
-            padding: 10px; 
-            background: #252525; 
-            border: 1px solid #444; 
-            color: white; 
-            border-radius: 6px; 
-            font-size: 14px;
+
+        header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border);
+            gap: 15px;
         }
-        input:focus { border-color: #4CAF50; outline: none; }
-        button {
-            width: 100%;
-            padding: 12px;
-            background: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            font-weight: 600;
-            cursor: pointer;
-            margin-top: 10px;
-            font-size: 14px;
-        }
-        button:hover { background: #43A047; }
-        .message { margin-top: 15px; font-size: 13px; min-height: 18px; }
-        .success { color: #4CAF50; }
-        .error { color: #F44336; }
-        
-        .setup-banner {
-            background: rgba(230, 81, 0, 0.2); 
-            border: 1px solid #e65100;
-            color: #ffcc80; 
-            padding: 12px; 
-            border-radius: 6px; 
-            margin-bottom: 20px;
-            font-size: 13px;
-            text-align: left;
-        }
-        .nav-link {
-            display: block;
-            margin-top: 20px;
-            color: #888;
+
+        h1 { margin: 0; font-size: 24px; color: #fff; }
+
+        .back-btn {
+            background: transparent;
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+            padding: 8px 12px;
+            border-radius: 4px;
             text-decoration: none;
-            font-size: 12px;
+            cursor: pointer;
         }
-        .nav-link:hover { color: #e0e0e0; }
+        .back-btn:hover { color: var(--text-primary); border-color: var(--text-primary); }
+
+        .setting-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .setting-group {
+            margin-bottom: 20px;
+        }
+        .setting-group:last-child { margin-bottom: 0; }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .help-text {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+
+        input[type="text"], input[type="number"], input[type="password"] {
+            width: 100%;
+            background: var(--bg-color);
+            border: 1px solid var(--border);
+            color: #fff;
+            padding: 10px;
+            border-radius: 4px;
+            box-sizing: border-box; 
+            font-family: inherit;
+        }
+
+        input[type="text"]:focus, input[type="number"]:focus, input[type="password"]:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .btn {
+            background: var(--accent);
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        .btn:hover { opacity: 0.9; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .btn-restart {
+            background: var(--warning);
+            color: #000;
+        }
+        
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Settings</h1>
-        
-        {% if setup_needed %}
-        <div class="setup-banner">
-            <strong>Setup Required:</strong><br>Please configure your API tokens to continue.
-        </div>
-        {% endif %}
+        <header>
+            <a href="/" class="back-btn">← Back</a>
+            <h1>Settings</h1>
+        </header>
 
-        <form id="settings-form">
-            <div class="form-group">
-                <label for="torbox_api_key">TorBox API Key</label>
-                <input type="text" id="torbox_api_key" name="torbox_api_key" value="{{ settings.torbox_api_key }}" placeholder="Required" required>
+        <form id="settingsForm" onsubmit="saveSettings(event)">
+            
+            <div class="setting-card">
+                <h3 style="margin-top:0">Network Limits</h3>
+                <div class="setting-group">
+                    <label>Global Speed Limit (MB/s)</label>
+                    <div class="help-text">Set to 0 for unlimited. Restarts active downloads when changed.</div>
+                    <input type="number" name="speed_limit" id="speed_limit" min="0" step="0.5" placeholder="0">
+                </div>
             </div>
-            <div class="form-group">
-                <label for="sab_api_key">SABnzbd/Bridge API Key</label>
-                <input type="text" id="sab_api_key" name="sab_api_key" value="{{ settings.sab_api_key }}" placeholder="Default: torbox123">
+
+            <div class="setting-card">
+                <h3 style="margin-top:0">API Configuration</h3>
+                <div class="help-text" style="color: var(--warning); margin-bottom: 15px;">
+                    Changing these values requires an application restart to take effect completely.
+                </div>
+
+                <div class="setting-group">
+                    <label>TorBox API Key</label>
+                    <input type="password" name="torbox_api_key" id="torbox_api_key" placeholder="Enter your TorBox API Key">
+                    <div class="help-text">Your API key from torbox.app settings</div>
+                </div>
+
+                <div class="setting-group">
+                    <label>SABnzbd Bridge API Key</label>
+                    <input type="text" name="sab_api_key" id="sab_api_key" placeholder="default">
+                    <div class="help-text">The API Key you use in Sonarr/Radarr to connect to this bridge</div>
+                </div>
             </div>
-            <div class="form-group">
-                <label for="max_concurrent">Max Concurrent Downloads</label>
-                <input type="number" id="max_concurrent" name="max_concurrent" value="{{ settings.max_concurrent }}" min="1" max="10">
+             
+             <div class="setting-card">
+                <h3 style="margin-top:0">System</h3>
+                <div class="setting-group">
+                    <label>Max Concurrent Downloads</label>
+                    <input type="number" name="max_concurrent" id="max_concurrent" min="1" max="10" placeholder="3">
+                </div>
+                
+                 <div class="setting-group">
+                    <label>Stuck Timeout (Seconds)</label>
+                    <input type="number" name="stuck_timeout" id="stuck_timeout" placeholder="3600">
+                </div>
             </div>
-            <div class="form-group">
-                <label for="stuck_timeout">Stuck Timeout (seconds)</label>
-                <input type="number" id="stuck_timeout" name="stuck_timeout" value="{{ settings.stuck_timeout }}">
+
+            <div class="setting-card">
+                <h3 style="margin-top:0">Maintenance</h3>
+                
+                <!-- Logs Section -->
+                <div class="setting-group" style="margin-bottom: 20px;">
+                    <label>Application Logs</label>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="number" id="log_lines" value="500" style="width: 100px;" placeholder="Lines">
+                        <button type="button" class="btn" onclick="viewLogs()">View Logs</button>
+                        <button type="button" class="btn btn-warning" onclick="confirmAction('/ui/logs/clear', 'Clear Logs')">Clear Logs</button>
+                    </div>
+                </div>
+
+                <div class="setting-group" style="display: flex; gap: 10px; align-items: center; border-top: 1px solid var(--border); padding-top: 15px;">
+                    <div style="flex: 1;">
+                        <label>Clean Downloads Folder</label>
+                        <div class="help-text">Deletes ALL files in /downloads/ (movies, tv, temp, etc). Irreversible.</div>
+                    </div>
+                    <button type="button" class="btn btn-warning" style="background-color: #fa5252; color: white;" onclick="confirmAction('/ui/clean_downloads', 'Delete Files')">Clean Files</button>
+                </div>
+
+                <div class="setting-group" style="display: flex; gap: 10px; align-items: center; border-top: 1px solid var(--border); padding-top: 15px;">
+                    <div style="flex: 1;">
+                        <label>Reset Queue (Keep Settings)</label>
+                        <div class="help-text">Clears active downloads and history. Keeps API keys. Restarts app.</div>
+                    </div>
+                    <button type="button" class="btn btn-warning" style="background-color: #fab005; color: black;" onclick="confirmAction('/ui/reset_cache', 'Reset Queue')">Reset Queue</button>
+                </div>
+
+                <div class="setting-group" style="display: flex; gap: 10px; align-items: center; border-top: 1px solid var(--border); padding-top: 15px;">
+                    <div style="flex: 1;">
+                        <label style="color: #fa5252;">Factory Reset</label>
+                        <div class="help-text">Wipes ALL settings, API keys, and queue. Like a fresh install.</div>
+                    </div>
+                    <button type="button" class="btn btn-warning" style="background-color: #fa5252; color: white;" onclick="confirmAction('/ui/factory_reset', 'Factory Reset')">Factory Reset</button>
+                </div>
             </div>
-            <button type="submit" id="save-btn">Save Settings</button>
+
+            <div style="display:flex; justify-content: space-between; align-items: center;">
+                <button type="button" class="btn btn-restart" onclick="restartApp()">Restart Application</button>
+                <button type="submit" class="btn" id="saveBtn">Save Settings</button>
+            </div>
         </form>
-        <div id="message" class="message"></div>
-        
-        {% if not setup_needed %}
-        <a href="/" class="nav-link">← Back to Dashboard</a>
-        {% endif %}
     </div>
+
     <script>
-        document.getElementById('settings-form').addEventListener('submit', function(event) {
-            event.preventDefault();
-            const btn = document.getElementById('save-btn');
-            const originalText = btn.innerText;
-            const msgDiv = document.getElementById('message');
-            
-            btn.disabled = true;
-            btn.innerText = 'Saving...';
-            msgDiv.className = 'message';
-            msgDiv.innerText = '';
+        async function viewLogs() {
+            const lines = document.getElementById('log_lines').value || 500;
+            window.open(`/ui/logs?lines=${lines}`, '_blank');
+        }
 
-            const formData = new FormData(this);
-            // Convert to JSON object for robustness if needed, but FormData works with the backend receiver if handles it.
-            // However, the backend is expecting JSON in previous snippets: data = request.json
-            // Let's check main.py line 1475: "data = request.json"
-            // The original HTML used fetch with body: formData, but did it set standard form encoding?
-            // Actually, if backend does data = request.json, we must send JSON.
+        async function confirmAction(endpoint, name) {
+            if (!confirm(`Are you sure you want to ${name}? This action cannot be undone.`)) return;
             
-            const plainFormData = Object.fromEntries(formData.entries());
-            const jsonString = JSON.stringify(plainFormData);
-
-            fetch('/ui/settings/save', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: jsonString
-            })
-            .then(response => response.json())
-            .then(data => {
-                if(data.status || data.status === 'saved') {
-                    msgDiv.innerText = 'Settings saved successfully! Redirecting...';
-                    msgDiv.classList.add('success');
-                    setTimeout(() => {
-                        window.location.href = '/';
-                    }, 1000);
+            try {
+                const res = await fetch(endpoint, { method: 'POST' });
+                const data = await res.json();
+                if (data.status) {
+                    alert(`${name} completed successfully.`);
+                    if(endpoint.includes('reset')) window.location.reload();
                 } else {
-                    msgDiv.innerText = 'Error: ' + (data.error || 'Unknown error');
-                    msgDiv.classList.add('error');
-                    btn.disabled = false;
-                    btn.innerText = originalText;
+                    alert('Action failed: ' + (data.error || 'Unknown error'));
                 }
-            })
-            .catch(error => {
-                msgDiv.innerText = 'Network Error saving settings.';
-                msgDiv.classList.add('error');
-                btn.disabled = false;
+            } catch (e) {
+                alert('Error: ' + e.message);
+            }
+        }
+
+        async function loadSettings() {
+            try {
+                const res = await fetch('/ui/settings/data');
+                const data = await res.json();
+                
+                document.getElementById('speed_limit').value = data.speed_limit || 0;
+                document.getElementById('torbox_api_key').value = data.torbox_api_key || '';
+                document.getElementById('sab_api_key').value = data.sab_api_key || '';
+                document.getElementById('max_concurrent').value = data.max_concurrent || 3;
+                document.getElementById('stuck_timeout').value = data.stuck_timeout || 3600;
+
+            } catch(e) { console.error(e); }
+        }
+
+        async function saveSettings(e) {
+            e.preventDefault();
+            const btn = document.getElementById('saveBtn');
+            const originalText = btn.innerText;
+            btn.innerText = "Saving...";
+            btn.disabled = true;
+
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData.entries());
+
+            try {
+                const res = await fetch('/ui/settings/save', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(data)
+                });
+                const result = await res.json();
+                
+                alert('Settings saved. You may need to restart the application for API Key changes to take effect.');
+                
+            } catch(error) {
+                alert('Error saving settings: ' + error);
+            } finally {
                 btn.innerText = originalText;
-            });
-        });
+                btn.disabled = false;
+            }
+        }
+
+        async function restartApp() {
+            if (!confirm('Are you sure you want to restart the application?')) return;
+            try {
+                await fetch('/ui/restart', { method: 'POST' });
+                alert('Application is restarting... Redirecting in 15s.');
+                setTimeout(() => window.location.href = '/', 15000);
+            } catch (e) { alert(e); }
+        }
+
+        loadSettings();
     </script>
 </body>
 </html>

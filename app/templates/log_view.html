@@ -3,14 +3,202 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Download Log - {{ title }}</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <title>Log Viewer - TorBox Bridge</title>
+    <style>
+        :root {
+            --bg-color: #1a1b1e;
+            --card-bg: #25262b;
+            --text-primary: #c1c2c5;
+            --text-secondary: #909296;
+            --accent: #339af0;
+            --border: #373a40;
+            --success: #40c057;
+            --error: #fa5252;
+            --warning: #fab005;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            box-sizing: border-box;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+
+        h1 { margin: 0; font-size: 20px; color: #fff; }
+
+        .log-container {
+            flex-grow: 1;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 15px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        pre {
+            margin: 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+            font-size: 13px;
+            color: var(--text-primary);
+            overflow-y: auto;
+            flex-grow: 1;
+            height: 100%;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+        }
+
+        button {
+            background: rgba(51, 154, 240, 0.1);
+            color: var(--accent);
+            border: 1px solid rgba(51, 154, 240, 0.2);
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        button:hover {
+            background: rgba(51, 154, 240, 0.2);
+        }
+
+        .secondary-btn {
+            background: transparent;
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+        }
+        .secondary-btn:hover {
+            color: var(--text-primary);
+            background: rgba(255,255,255,0.05);
+        }
+        
+        .btn-success {
+            background-color: rgba(64, 192, 87, 0.2) !important;
+            color: var(--success) !important;
+            border-color: rgba(64, 192, 87, 0.5) !important;
+        }
+
+        /* Scrollbar styling */
+        pre::-webkit-scrollbar {
+            width: 8px;
+        }
+        pre::-webkit-scrollbar-track {
+            background: var(--bg-color);
+        }
+        pre::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 4px;
+        }
+        pre::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+    </style>
 </head>
 <body>
-    <div class="container">
+    <header>
         <h1>{{ title }}</h1>
-        <pre>{{ content }}</pre>
-        <a href="{{ url_for('ui_index') }}">Back to Dashboard</a>
+        {% if is_global %}
+        <div class="controls">
+            <button onclick="copyLog()" class="secondary-btn">Copy to Clipboard</button>
+            <button onclick="downloadLog()">Download Log</button>
+        </div>
+        {% endif %}
+    </header>
+
+    <div class="log-container">
+        <pre id="logContent">{{ content }}</pre>
     </div>
+
+    <script>
+        function copyLog() {
+            const content = document.getElementById('logContent').innerText;
+            
+            // Prefer modern API if available (secure context)
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(content).then(() => {
+                    handleCopySuccess();
+                }).catch(err => {
+                    console.error('Async: Could not copy text: ', err);
+                    fallbackCopyTextToClipboard(content);
+                });
+            } else {
+                // Fallback for non-secure contexts (http)
+                fallbackCopyTextToClipboard(content);
+            }
+        }
+        
+        function fallbackCopyTextToClipboard(text) {
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            
+            // Avoid scrolling to bottom
+            textArea.style.top = "0";
+            textArea.style.left = "0";
+            textArea.style.position = "fixed";
+
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+
+            try {
+                const successful = document.execCommand('copy');
+                if(successful) handleCopySuccess();
+                else console.error('Fallback: Copying text command was unsuccessful');
+            } catch (err) {
+                console.error('Fallback: Oops, unable to copy', err);
+            }
+
+            document.body.removeChild(textArea);
+        }
+
+        function handleCopySuccess() {
+            const btn = document.querySelector('button.secondary-btn');
+            const originalText = "Copy to Clipboard";
+            
+            btn.innerText = "Copied to Clipboard";
+            btn.classList.add('btn-success');
+            
+            setTimeout(() => {
+                btn.innerText = originalText;
+                btn.classList.remove('btn-success');
+            }, 2000);
+        }
+
+        function downloadLog() {
+            const content = document.getElementById('logContent').innerText;
+            const blob = new Blob([content], { type: 'text/plain' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'torbox_bridge.log';
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        }
+    </script>
 </body>
 </html>

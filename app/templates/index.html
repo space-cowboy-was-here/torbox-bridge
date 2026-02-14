@@ -3,29 +3,783 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TorBox SABnzbd Bridge</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <title>TorBox Bridge UI</title>
+    <style>
+        :root {
+            --bg-color: #1a1b1e;
+            --card-bg: #25262b;
+            --text-primary: #c1c2c5;
+            --text-secondary: #909296;
+            --accent: #339af0;
+            --border: #373a40;
+            --success: #40c057;
+            --error: #fa5252;
+            --warning: #fab005;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        h1 { margin: 0; font-size: 24px; color: #fff; }
+
+        .stats-bar {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+        }
+        
+        @media (max-width: 600px) {
+            body { padding: 10px; }
+            .container { width: 100%; }
+            
+            /* Header adjustments */
+            header { 
+                /* Keep row layout on mobile for title left/buttons right */
+                flex-direction: row; 
+                align-items: center; 
+                gap: 10px; 
+            }
+            header > div:first-child svg {
+                /* Shrink logo slightly on mobile */
+                width: 24px;
+                height: 24px;
+            }
+            header h1 {
+                font-size: 18px; /* Slightly smaller title */
+            }
+            /* Remove the column-forcing logic */
+            
+            .refresh-btn { 
+                padding: 8px 12px; 
+            }
+
+            /* Compact table cells for mobile */
+            td, th { padding: 12px 10px; }
+            
+            .stat-card { padding: 15px; }
+            .stat-value { font-size: 20px; }
+            
+            /* Hide non-essential info in history on mobile if needed */
+            .history-path { display: none; }
+        }
+
+        .stat-label { font-size: 12px; color: var(--text-secondary); margin-bottom: 5px; }
+        .stat-value { font-size: 20px; font-weight: 600; color: #fff; }
+
+        .section-title {
+            font-size: 18px;
+            margin-bottom: 15px;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .table-container {
+            background: var(--card-bg);
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            overflow-x: hidden; /* Prevent horizontal scroll */
+            margin-bottom: 30px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+            table-layout: fixed; /* Helps with text truncation and responsive width */
+        }
+
+        th {
+            background: rgba(0,0,0,0.2);
+            text-align: left;
+            padding: 12px 16px;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        td {
+            padding: 12px 16px;
+            border-top: 1px solid var(--border);
+            vertical-align: middle;
+        }
+
+        .progress-bar {
+            background: #444;
+            height: 4px; /* Thinner */
+            border-radius: 2px;
+            overflow: hidden;
+            margin-top: 6px;
+            margin-bottom: 6px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--accent);
+            transition: width 0.3s ease, background 0.3s ease;
+        }
+
+        .progress-fill.transferring {
+            background: #9b59b6; /* Purple */
+        }
+
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            white-space: nowrap; 
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Responsive History Classes */
+        .history-item-card {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            padding: 4px 0;
+            width: 100%;
+        }
+
+        .history-filename {
+            font-weight: 500;
+            font-size: 14px;
+            color: #fff;
+            word-break: break-all;
+            line-height: 1.4;
+        }
+
+        .history-meta-row {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .history-reason {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex: 1;
+            min-width: 0; 
+        }
+
+        .history-reason-text {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .history-time {
+            white-space: nowrap;
+            font-size: 11px;
+            margin-left: auto; /* Push to right if space permits */
+        }
+ 
+        .status-processing { background: rgba(250, 176, 5, 0.15); color: #fab005; } 
+        .status-transferring { background: rgba(155, 89, 182, 0.2); color: #9b59b6; } 
+        .status-completed { background: rgba(64, 192, 87, 0.15); color: var(--success); }
+        .status-failed { background: rgba(250, 82, 82, 0.15); color: var(--error); }
+        .status-queued { background: rgba(255, 255, 255, 0.1); color: var(--text-secondary); }
+        .status-cloud { background: rgba(51, 154, 240, 0.2); color: var(--accent); }
+
+            /* Category Badge Style */
+            .category-badge {
+                padding: 4px 8px;
+                border-radius: 4px;
+                font-size: 11px; /* Match status badge font-size */
+                font-weight: 500;
+                color: var(--text-secondary);
+                background: rgba(255,255,255,0.05); /* Neutral */
+                border: 1px solid rgba(255,255,255,0.1);
+                text-transform: lowercase; /* Or capitalize if preferred */
+            }
+
+        /* Queue Layout Classes */
+        .queue-item-card {
+            display: flex;
+            flex-direction: column;
+            gap: 8px; 
+            width: 100%;
+            padding: 4px 0;
+        }
+        
+        /* Row 1: Filename */
+        .queue-filename {
+            font-weight: 600;
+            font-size: 14px;
+            color: #fff;
+            word-break: break-all;
+            line-height: 1.4;
+            width: 100%;
+        }
+
+        /* Row 2: Status + Meta */
+        .queue-meta-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+
+        /* Row 3: Progress + Actions */
+        .queue-action-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: 4px;
+        }
+
+        .queue-progress-container {
+            flex-grow: 1; /* Takes all remaining space */
+            background: #444;
+            height: 8px; /* Slightly thicker */
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: var(--accent);
+            transition: width 0.3s ease;
+        }
+        
+        .progress-fill.transferring { background: #9b59b6; }
+
+        .queue-actions-group {
+            display: flex;
+            align-items: center;
+            gap: 2px;
+            flex-shrink: 0;
+        }
+
+            overflow: hidden;
+            width: 100%;
+        }
+
+        .action-cell {
+            text-align: right;
+            white-space: nowrap;
+        }
+
+        
+        .upload-area {
+            border: 2px dashed var(--border);
+            border-radius: 8px;
+            padding: 30px;
+            text-align: center;
+            margin-bottom: 30px;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+
+        .upload-area:hover { border-color: var(--accent); }
+
+        .hidden-input { display: none; }
+        
+        button {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        button:hover { opacity: 0.9; }
+
+        .refresh-btn {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+        }
+        
+        .refresh-btn:hover { border-color: var(--text-primary); color: var(--text-primary); }
+
+        .action-btn {
+            background: transparent;
+            color: var(--text-secondary);
+            border: none;
+            padding: 10px; /* Larger hit area */
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s, color 0.2s;
+            margin-left: 2px;
+        }
+
+        .action-btn:hover {
+            background: rgba(255,255,255,0.1);
+            color: var(--text-primary);
+        }
+
+        .action-btn svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        .delete-action:hover {
+            background: rgba(250, 82, 82, 0.15);
+            color: var(--error);
+        }
+
+        .delete-btn { /* Legacy/Simple delete */
+            background: transparent;
+            color: var(--error);
+            padding: 4px;
+            font-size: 18px;
+        }
+        .delete-btn:hover { color: #ff8787; }
+
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        .spin { animation: spin 1s linear infinite; }
+        
+        .icon-btn {
+            background: transparent;
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+            border-radius: 50%; /* Circle */
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+        }
+        
+        .icon-btn:hover {
+            color: var(--text-primary);
+            border-color: var(--text-primary);
+            background: rgba(255,255,255,0.05);
+        }
+        
+        .icon-btn svg {
+            width: 20px;
+            height: 20px;
+        }
+    </style>
 </head>
 <body>
-    <header>
-        <h1>Welcome to TorBox SABnzbd Bridge</h1>
-    </header>
-    <nav>
-        <ul>
-            <li><a href="/">Home</a></li>
-            <li><a href="/ui/settings">Settings</a></li>
-            <li><a href="/ui/logs">Logs</a></li>
-        </ul>
-    </nav>
-    <main>
-        <h2>Current Downloads</h2>
-        <div id="downloads">
-            <!-- Downloads will be dynamically loaded here -->
+    <div class="container">
+        <header>
+            <div style="display:flex; align-items:center; gap:15px;">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+                    <line x1="9" y1="9" x2="9.01" y2="9"></line>
+                    <line x1="15" y1="9" x2="15.01" y2="9"></line>
+                    <path d="M4 16c1.5-1 3.5-2 6-1s6.5 2 9 0"></path>
+                </svg>
+                <h1>TorBox Bridge</h1>
+            </div>
+            <div style="display:flex; align-items:center; gap:10px;">
+                <a href="/ui/settings" class="icon-btn" title="Settings">
+                    <!-- Simpler Gear Icon -->
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.09a2 2 0 0 1-1-1.74v-.47a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path>
+                        <circle cx="12" cy="12" r="3"></circle>
+                    </svg>
+                </a>
+                <button id="refreshBtn" class="icon-btn" onclick="manualRefresh()" title="Refresh">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="23 4 23 10 17 10"></polyline>
+                        <polyline points="1 20 1 14 7 14"></polyline>
+                        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                    </svg>
+                </button>
+            </div>
+        </header>
+
+        <!-- Stats -->
+        <div class="stats-bar">
+            <div class="stat-card">
+                <div class="stat-label">Status</div>
+                <div class="stat-value" id="globalStatus">Active</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Download Speed</div>
+                <div class="stat-value" id="globalSpeed">0 MB/s</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Queue Size</div>
+                <div class="stat-value" id="queueCount">0 Items</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Disk Space (Download Dir)</div>
+                <div class="stat-value" id="diskSpace">--</div>
+            </div>
         </div>
-    </main>
-    <footer>
-        <p>&copy; 2023 TorBox SABnzbd Bridge</p>
-    </footer>
-    <script src="{{ url_for('static', filename='script.js') }}"></script>
+        
+
+
+        <!-- Queue -->
+        <div class="section-title" style="display: flex; justify-content: space-between; align-items: center;">
+            <span>Download Queue</span>
+            <button id="pauseAllBtn" class="refresh-btn" onclick="togglePauseAll()" style="font-size: 13px; padding: 6px 12px;">Pause All</button>
+        </div>
+        <div class="table-container">
+            <table>
+                <!-- thead removed for card layout -->
+                <tbody id="queueTable">
+                    <!-- Javascript will populate this -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- History -->
+        <div class="section-title">History</div>
+        <div class="table-container">
+            <table>
+                <!-- thead removed for card layout -->
+                <tbody id="historyTable"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const API_KEY = "dummy_key"; // Using default from your script config
+        
+        async function manualRefresh() {
+            const btn = document.getElementById('refreshBtn');
+            const svg = btn.querySelector('svg');
+            
+            // Add spin class
+            svg.classList.add('spin');
+            
+            // Wait for data
+            await fetchData();
+            
+            // Remove spin class after a minimum time so user sees it happened
+            setTimeout(() => {
+                svg.classList.remove('spin');
+            }, 500); 
+        }
+
+        async function fetchData() {
+            try {
+                const response = await fetch('/ui/data');
+                const data = await response.json();
+                render(data);
+            } catch (error) {
+                console.error('Error fetching data:', error);
+            }
+        }
+
+        function render(data) {
+            // Stats
+            let speedText = formatSpeed(data.global_speed);
+            if (data.speed_limit > 0) {
+                // If limit is < 1, show in KB/s
+                const limitStr = data.speed_limit < 1 ? (data.speed_limit * 1024).toFixed(0) + ' KB/s' : data.speed_limit + ' MB/s';
+                speedText += ` <span style="font-size:12px; color:var(--text-secondary)">(Limit: ${limitStr})</span>`;
+            }
+            document.getElementById('globalSpeed').innerHTML = speedText;
+            document.getElementById('queueCount').textContent = `${data.queue.length} Items`;
+            document.getElementById('diskSpace').textContent = data.disk_space || '--';
+            
+            // Queue
+            const queueBody = document.getElementById('queueTable');
+            queueBody.innerHTML = '';
+            
+            if (data.queue.length === 0) {
+                queueBody.innerHTML = `<tr><td style="text-align:center; padding: 30px; color: var(--text-secondary)">Queue is empty</td></tr>`;
+            } else {
+                data.queue.forEach(item => {
+                    const row = document.createElement('tr');
+                    
+                    let statusLabel = item.status.replace('_', ' ');
+                    let statusClass = 'status-downloading';
+                    let progressFillClass = '';
+
+
+                    // Status Label logic
+                    if (item.status === 'Paused_Local' || item.is_paused) {
+                        statusLabel = 'Paused';
+                        statusClass = 'status-queued'; // Grey
+                    } else if (item.status === 'Queued') {
+                        statusLabel = 'Queued';
+                        statusClass = 'status-queued';
+                    } else if (item.status === 'Downloading') {
+                        if (item.progress >= 99.9) {
+                            statusLabel = 'Processing';
+                            statusClass = 'status-processing'; // Yellow
+                        } else {
+                            statusLabel = 'Cloud Download';
+                            statusClass = 'status-downloading'; // Blue
+                        }
+                    } else if (item.status === 'Downloading_Local') {
+                        statusLabel = 'Transferring';
+                        statusClass = 'status-transferring';
+                        progressFillClass = 'transferring';
+                    } else if (item.status === 'Cloud_Done') {
+                        statusLabel = 'Ready for Transfer';
+                        statusClass = 'status-cloud';
+                    }
+
+                    const pauseAction = item.is_paused ? `resumeItem('${item.nzo_id}')` : `pauseItem('${item.nzo_id}')`;
+                    
+                    // SVGs for interface
+                    const pauseSvg = item.is_paused 
+                        ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>` 
+                        : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>`;
+                    const pauseTitle = item.is_paused ? 'Resume' : 'Pause';
+
+                    const removeSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
+                    
+                    const topSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>`;
+
+                    
+                    // Compact Meta String
+                    // Size • Speed • ETA • Category
+                    // But user asked for speed and ETA under progress bar? 
+                    // Let's stick to the "bottom left status, progress bar right" plan.
+                    // And put Meta text between Title and Status/Progress.
+                    
+                    row.innerHTML = `
+                        <td>
+                            <div class="queue-item-card">
+                                <!-- Row 1: Filename -->
+                                <div class="queue-filename" title="${item.filename}">${item.filename}</div>
+                                
+                                <!-- Row 2: Status + Meta Info -->
+                                <div class="queue-meta-row">
+                                    <span class="category-badge">${item.category || 'default'}</span>
+                                    <span class="status-badge ${statusClass}">${statusLabel}</span>
+                                    <span>${formatBytes(item.size)}</span>
+                                    <span>&bull;</span>
+                                    <span>${formatSpeed(item.speed)}</span>
+                                    <span>&bull;</span>
+                                    <span>${formatTime(item.eta)}</span>
+                                    <span>&bull;</span>
+                                    <span>${item.progress.toFixed(1)}%</span>
+                                </div>
+
+                                <!-- Row 3: Progress + Actions -->
+                                <div class="queue-action-row">
+                                    <div class="queue-progress-container">
+                                        <div class="progress-fill ${progressFillClass}" style="width: ${item.progress}%"></div>
+                                    </div>
+                                    <div class="queue-actions-group">
+                                        <button class="action-btn" onclick="moveItem('${item.nzo_id}', 'top')" title="Move to Top">${topSvg}</button>
+                                        <button class="action-btn" onclick="${pauseAction}" title="${pauseTitle}">${pauseSvg}</button>
+                                        <button class="action-btn delete-action" onclick="deleteItem('${item.nzo_id}')" title="Remove">${removeSvg}</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                    `;
+                    queueBody.appendChild(row);
+                });
+            }
+
+            // Update Global Pause Button
+            const pauseBtn = document.getElementById('pauseAllBtn');
+            if (data.global_paused) {
+                pauseBtn.innerText = "Resume All";
+                pauseBtn.style.color = "var(--success)";
+                pauseBtn.style.borderColor = "var(--success)";
+                document.getElementById('globalStatus').innerText = "Paused";
+                document.getElementById('globalStatus').style.color = "var(--warning)";
+            } else {
+                pauseBtn.innerText = "Pause All";
+                pauseBtn.style.color = "";
+                pauseBtn.style.borderColor = "";
+                document.getElementById('globalStatus').innerText = "Active";
+                document.getElementById('globalStatus').style.color = "var(--success)";
+            }
+
+            // History
+            const historyBody = document.getElementById('historyTable');
+            historyBody.innerHTML = '';
+
+            if (data.history.length === 0) {
+                historyBody.innerHTML = `<tr><td style="text-align:center; padding: 30px; color: var(--text-secondary)">No history</td></tr>`;
+            } else {
+                data.history.forEach(item => {
+                    const row = document.createElement('tr');
+                    const isSuccess = item.status === 'Completed';
+                    const statusClass = isSuccess ? 'status-completed' : 'status-failed';
+                    const date = new Date(item.added_at * 1000).toLocaleString(undefined, {
+                        month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit'
+                    });
+                    
+                    let logButton = '';
+                    let retryButton = '';
+
+                    if (!isSuccess) {
+                         // Log Button
+                         logButton = `
+                            <a href="/ui/logs/${item.nzo_id}" target="_blank" style="text-decoration:none; display: flex; align-items: center;">
+                                <span style="background: rgba(250, 82, 82, 0.2); color: var(--error); border: 1px solid rgba(250, 82, 82, 0.5); padding: 1px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; text-transform: uppercase;">LOG</span>
+                            </a>
+                         `;
+
+                         // Retry Button (Refresh Icon)
+                         retryButton = `
+                            <button onclick="retryItem('${item.nzo_id}')" title="Retry Download" style="background: none; border: none; color: var(--text-secondary); cursor: pointer; padding: 0 0 0 8px; display: flex; align-items: center; justify-content: center; opacity: 0.7;">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px;"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+                            </button>
+                         `;
+                    }
+                    
+                    const category = item.category || 'default';
+
+                    row.innerHTML = `
+                        <td>
+                            <div class="history-item-card">
+                                <div class="history-filename" title="${item.filename}">${item.filename}</div>
+                                <div class="history-meta-row">
+                                    <span class="category-badge" style="padding: 2px 6px; font-size: 10px;">${category}</span>
+                                    <span class="status-badge ${statusClass}" style="padding: 2px 6px; font-size: 10px;">${item.status}</span>
+                                    
+                                    ${logButton}
+                                    
+                                    <div class="history-time" style="margin-left: auto;">${date}</div>
+                                    ${retryButton}
+                                </div>
+                            </div>
+                        </td>
+                    `;
+                    historyBody.appendChild(row);
+                });
+            }
+        }
+
+
+
+        async function restartApp() {
+            if (!confirm('Are you sure you want to restart the application? This will terminate the process and rely on the container orchestrator to restart it.')) return;
+            
+            try {
+                await fetch('/ui/restart', { method: 'POST' });
+                alert('Application is restarting... The page will attempt to reload in 15 seconds.');
+                
+                // Disable buttons
+                const buttons = document.querySelectorAll('button');
+                buttons.forEach(btn => btn.disabled = true);
+                
+                setTimeout(() => location.reload(), 15000);
+            } catch (e) {
+                alert('Error processing restart request: ' + e);
+            }
+        }
+
+        async function togglePauseAll() {
+            const btn = document.getElementById('pauseAllBtn');
+            const isPaused = btn.innerText === "Resume All";
+            const endpoint = isPaused ? '/ui/resume_all' : '/ui/pause_all';
+            
+            try {
+                await fetch(endpoint, { method: 'POST' });
+                fetchData();
+            } catch (e) { console.error(e); }
+        }
+
+        async function pauseItem(nzo_id) {
+            try {
+                await fetch(`/ui/item/${nzo_id}/pause`, { method: 'POST' });
+                fetchData();
+            } catch (e) { console.error(e); }
+        }
+
+        async function resumeItem(nzo_id) {
+            try {
+                await fetch(`/ui/item/${nzo_id}/resume`, { method: 'POST' });
+                fetchData();
+            } catch (e) { console.error(e); }
+        }
+
+        async function retryItem(nzo_id) {
+            try {
+                await fetch(`/ui/item/${nzo_id}/retry`, { method: 'POST' });
+                fetchData();
+            } catch (e) { console.error(e); }
+        }
+
+
+        async function deleteItem(nzo_id) {
+            if(!confirm('Are you sure you want to remove this item?')) return;
+            try {
+                // Determine if we need an API key for the internal call.
+                // The API var below is actually hardcoded in the script block currently
+                // but the endpoint is open for now or we can use the one from config
+                await fetch(`/sabnzbd/api?mode=queue&name=delete&value=${nzo_id}&apikey=${API_KEY}`);
+                fetchData();
+            } catch(e) { console.error(e); }
+        }
+
+        async function moveItem(nzo_id, direction) {
+            try {
+                await fetch(`/ui/queue/${direction}/${nzo_id}`, { method: 'POST' });
+                fetchData();
+            } catch (e) { console.error(e); }
+        }
+
+        // Helpers
+        function formatBytes(bytes, decimals = 2) {
+            if (!+bytes) return '0 B';
+            const k = 1024;
+            const dm = decimals < 0 ? 0 : decimals;
+            const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
+        }
+
+        function formatSpeed(bytesPerSec) {
+            return formatBytes(bytesPerSec) + '/s';
+        }
+
+        function formatTime(seconds) {
+            if (!seconds || seconds === Infinity) return '--';
+            seconds = Math.round(seconds);
+            if (seconds < 60) return `${seconds}s`;
+            const h = Math.floor(seconds / 3600);
+            const m = Math.floor((seconds % 3600) / 60);
+            const s = seconds % 60;
+            if (h === 0) return `${m}m ${s}s`;
+            return `${h}h ${m}m`;
+        }
+
+        // Auto Refresh
+        fetchData();
+        setInterval(fetchData, 2000);
+
+    </script>
 </body>
 </html>
