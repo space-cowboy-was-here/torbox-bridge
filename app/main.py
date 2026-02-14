@@ -102,7 +102,8 @@ def init_db():
         c = conn.cursor()
         c.execute('''CREATE TABLE IF NOT EXISTS queue 
                      (nzo_id TEXT PRIMARY KEY, torbox_id TEXT, filename TEXT, category TEXT, status TEXT, 
-                      size REAL, progress REAL, added_at REAL, path TEXT, failure_reason TEXT, last_updated REAL)''')
+                      size REAL, progress REAL, added_at REAL, path TEXT, failure_reason TEXT, last_updated REAL,
+                      speed REAL DEFAULT 0, eta REAL DEFAULT 0, is_paused INTEGER DEFAULT 0, priority INTEGER DEFAULT 0, avg_speed REAL DEFAULT 0)''')
         try:
             c.execute("ALTER TABLE queue ADD COLUMN last_updated REAL")
         except: pass
@@ -115,6 +116,14 @@ def init_db():
             c.execute("ALTER TABLE queue ADD COLUMN is_paused INTEGER DEFAULT 0")
         except: pass
         
+        try:
+            c.execute("ALTER TABLE queue ADD COLUMN speed REAL DEFAULT 0")
+        except: pass
+
+        try:
+            c.execute("ALTER TABLE queue ADD COLUMN eta REAL DEFAULT 0")
+        except: pass
+
         try:
             c.execute("ALTER TABLE queue ADD COLUMN avg_speed REAL DEFAULT 0")
         except: pass
@@ -611,7 +620,8 @@ def local_download_thread(nzo_id, tid, category, folder_name, file_url, file_nam
             
         if process.returncode == 0:
             dl_log.info(f"Local Download Complete: {file_name}")
-            c.execute("UPDATE queue SET status='Completed', progress=100, speed=0, eta=0, path=? WHERE nzo_id=?", (final_dir, nzo_id))
+            # Status -> Importing (Waiting for Sonarr/Radarr to move the file)
+            c.execute("UPDATE queue SET status='Importing', progress=100, speed=0, eta=0, path=? WHERE nzo_id=?", (full_path, nzo_id))
             # torbox_control(tid, 'delete') # Disabled deletion based on user preference
             dl_log.discard() # Success = Delete logs
         else:
@@ -647,6 +657,22 @@ def local_download_thread(nzo_id, tid, category, folder_name, file_url, file_nam
     finally:
         if nzo_id in ACTIVE_DOWNLOADS: del ACTIVE_DOWNLOADS[nzo_id]
         conn.close()
+
+# --- HELPER FUNCTIONS ---
+def send_discord_notification(message):
+    try:
+        conn = get_db_connection()
+        webhook_url = get_setting(conn, "discord_webhook", "")
+        conn.close()
+        
+        if webhook_url:
+            payload = {"content": message}
+            # Use a thread to not block the caller
+            def _send():
+                try: requests.post(webhook_url, json=payload, timeout=10)
+                except Exception as e: logging.error(f"Discord Notification Failed: {e}")
+            threading.Thread(target=_send).start()
+    except: pass
 
 # --- BACKGROUND WORKER ---
 def download_worker():
@@ -687,9 +713,9 @@ def download_worker():
                     local = local_items[tid]
                     
                     # If local download is active, let the thread handle updates
-                    if local['status'] == 'Downloading_Local':
+                    if local['status'] in ['Downloading_Local', 'Importing']:
                         if DEBUG_MODE and int(time.time()) % 10 == 0:
-                            logger.debug(f"Skipping {local['filename']} (active local download)")
+                            logger.debug(f"Skipping {local['filename']} (active local download/import)")
                         continue
 
                     # If Paused_Local, wait user input (or unpause)
@@ -781,6 +807,19 @@ def download_worker():
                     cursor.execute("UPDATE queue SET progress=?, status=?, size=?, speed=?, eta=?, last_updated=? WHERE torbox_id=?", 
                                    (progress, new_status, size_bytes, speed, eta, last_updated, tid))
             
+            # --- CHECK IMPORT STATUS ---
+            cursor.execute("SELECT * FROM queue WHERE status='Importing'")
+            for r in cursor.fetchall():
+                f_path = r['path']
+                # If file is missing, it means Sonarr moved/deleted it
+                if f_path and not os.path.exists(f_path):
+                    logger.info(f"File {f_path} gone. Marking {r['filename']} as Imported.")
+                    cursor.execute("UPDATE queue SET status='Completed' WHERE nzo_id=?", (r['nzo_id'],))
+                    send_discord_notification(f"✅ **Imported**: {r['filename']}")
+                # If no path stored, assume completed
+                elif not f_path:
+                     cursor.execute("UPDATE queue SET status='Completed' WHERE nzo_id=?", (r['nzo_id'],))
+
             # Check for Timeouts (Stuck items)
             current_time = time.time()
             cursor.execute('''UPDATE queue SET status='Failed', failure_reason='Timeout/Stuck' 
@@ -1153,8 +1192,10 @@ def api_v2_auth_login():
             resp = Response('Ok.', 200)
             resp.set_cookie('SID', 'torbox_bridge_sid', httponly=True)
             return resp
+        logger.warning(f"Login failed for user: {username}")
         return 'Fails.', 401
-    except:
+    except Exception as e:
+        logger.error(f"Login API Error: {e}")
         return 'Fails.', 401
     finally:
         conn.close()
@@ -1399,6 +1440,7 @@ def api_v2_torrents_info():
             status = r['status']
             
             if status == 'Completed': state = 'pausedUP' # Completed download -> Seeding/Paused
+            elif status == 'Importing': state = 'pausedUP' # Waiting for import (Seeding)
             elif status == 'Paused_Local' or r['is_paused']: state = 'pausedDL'
             elif status == 'Queued': state = 'queuedDL' # Cloud Queued
             elif status == 'Cloud_Done': state = 'stalledDL' # Waiting for transfer slot
@@ -1474,7 +1516,8 @@ def ui_settings_page():
             "torbox_api_key": get_setting(conn, "torbox_api_key", ""),
             "sab_api_key": get_setting(conn, "sab_api_key", "torbox123"),
             "max_concurrent": get_setting(conn, "max_concurrent", 3),
-            "stuck_timeout": get_setting(conn, "stuck_timeout", 3600)
+            "stuck_timeout": get_setting(conn, "stuck_timeout", 3600),
+            "discord_webhook": get_setting(conn, "discord_webhook", "")
         }
         return render_template('settings.html', settings=settings, setup_needed=(not settings['torbox_api_key']))
     finally:
@@ -1490,7 +1533,8 @@ def ui_settings_data():
             "torbox_api_key": get_setting(conn, "torbox_api_key", os.getenv("TORBOX_API_KEY", "")),
             "sab_api_key": get_setting(conn, "sab_api_key", os.getenv("SABNZBD_API_KEY", "torbox123")),
             "max_concurrent": get_setting(conn, "max_concurrent", 3),
-            "stuck_timeout": get_setting(conn, "stuck_timeout", 3600)
+            "stuck_timeout": get_setting(conn, "stuck_timeout", 3600),
+            "discord_webhook": get_setting(conn, "discord_webhook", "")
         }
         return jsonify(settings)
     finally:
@@ -1512,6 +1556,8 @@ def ui_settings_save():
             conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('max_concurrent', ?)", (str(data['max_concurrent']),))
         if 'stuck_timeout' in data:
             conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('stuck_timeout', ?)", (str(data['stuck_timeout']),))
+        if 'discord_webhook' in data:
+            conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('discord_webhook', ?)", (str(data['discord_webhook']),))
             
         conn.commit()
         

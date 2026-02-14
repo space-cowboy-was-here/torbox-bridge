@@ -149,6 +149,15 @@
                     <div class="help-text">The API Key you use in Sonarr/Radarr to connect to this bridge</div>
                 </div>
             </div>
+
+            <div class="setting-card">
+                <h3 style="margin-top:0">Notifications</h3>
+                <div class="setting-group">
+                    <label>Discord Webhook URL</label>
+                    <input type="text" name="discord_webhook" id="discord_webhook" placeholder="https://discord.com/api/webhooks/...">
+                    <div class="help-text">Leave empty to disable. Sends notifications when downloads are imported.</div>
+                </div>
+            </div>
              
              <div class="setting-card">
                 <h3 style="margin-top:0">System</h3>
@@ -241,6 +250,7 @@
                 document.getElementById('sab_api_key').value = data.sab_api_key || '';
                 document.getElementById('max_concurrent').value = data.max_concurrent || 3;
                 document.getElementById('stuck_timeout').value = data.stuck_timeout || 3600;
+                document.getElementById('discord_webhook').value = data.discord_webhook || '';
 
             } catch(e) { console.error(e); }
         }
