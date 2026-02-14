@@ -20,8 +20,6 @@ tmp/
 
 # Ignore any other files you don't want to include in the Docker image
 *.md
-*.txt
 *.git
 .gitignore
 README.md
-requirements.txt
