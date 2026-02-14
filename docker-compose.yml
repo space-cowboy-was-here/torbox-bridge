@@ -6,7 +6,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: torbox-bridge
+    container_name: torbox-bridge-test
     ports:
       - "${PORT:-5051}:${PORT:-5051}"
     volumes:
