@@ -959,7 +959,17 @@ def ui_data():
     try:
         # Get Disk Space
         total, used, free = shutil.disk_usage(DL_DIR)
-        disk_space_str = f"{free / (1024**3):.2f} GB Free"
+        
+        size = free
+        disk_unit = 'B'
+        for unit in ['B', 'KB', 'MB', 'GB', 'TB', 'PB']:
+            if size < 1024.0:
+                disk_unit = unit
+                break
+            size /= 1024.0
+            disk_unit = unit # Update unit if we continue
+            
+        disk_space_str = f"{size:.2f} {disk_unit} Free"
 
         # Get Global Pause
         row_pause = conn.execute("SELECT value FROM settings WHERE key='pause_all'").fetchone()
