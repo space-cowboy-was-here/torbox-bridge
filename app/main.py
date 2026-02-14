@@ -768,6 +768,12 @@ def download_worker():
                                     logger.info(f"Item {tid} ({local['filename']}) is Ready for Transfer!")
                                 new_status = 'Cloud_Done'
 
+                            # Update filename if it was "Unknown Magnet" or "Unknown" and we have a real name now
+                            if c_item.get('name') and local['filename'] in ['Unknown Magnet', 'Unknown']:
+                                real_name = c_item.get('name')
+                                logger.info(f"Updating filename for {tid}: {local['filename']} -> {real_name}")
+                                cursor.execute("UPDATE queue SET filename=? WHERE nzo_id=?", (real_name, local['nzo_id']))
+
                     elif any(x in state for x in ['error', 'failed', 'stalled', 'broken', 'aborted', 'killed', 'removed']):
                          # Capture cloud failure details
                          reason = f"{state} (Cloud Download)"
